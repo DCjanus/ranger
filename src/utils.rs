@@ -1,5 +1,4 @@
 use fetch::SubInfo;
-use ring::digest;
 use std::{
     env::current_dir,
     fs::File,
@@ -24,7 +23,7 @@ pub fn calc_cid_hash(path: &Path) -> Result<String> {
     let mut file = File::open(path)?;
     let file_size = file.metadata()?.len();
 
-    let mut context = digest::Context::new(&digest::SHA1);
+    let mut context = ::sha1::Sha1::new();
     if file_size < 0xf000 {
         let mut buffer: Vec<u8> = Vec::with_capacity(0xf000);
         file.read_to_end(&mut buffer)?;
@@ -44,7 +43,7 @@ pub fn calc_cid_hash(path: &Path) -> Result<String> {
         file.read_exact(&mut buffer)?;
         context.update(&buffer);
     }
-    Ok(::hex::encode(context.finish().as_ref()))
+    Ok(context.hexdigest())
 }
 
 pub fn calc_target_path(video_path: &Path, index: usize, sub_info: &SubInfo) -> PathBuf {

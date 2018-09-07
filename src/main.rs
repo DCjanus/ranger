@@ -1,12 +1,11 @@
 extern crate clap;
 extern crate failure;
-extern crate hex;
 extern crate reqwest;
-extern crate ring;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate sha1;
 extern crate threadpool;
 extern crate url;
 
