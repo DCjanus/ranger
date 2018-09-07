@@ -1,0 +1,28 @@
+[package]
+name = "lone-ranger"
+license = "MIT"
+version = "1.0.0"
+readme = "README.MD"
+authors = ["DCjanus <DCjanus@dcjanus.com>"]
+description = "Subtitles downloader"
+homepage = "https://github.com/DCjanus/lone-ranger"
+repository = "https://github.com/DCjanus/lone-ranger.git"
+
+[dependencies]
+hex = "0.3.2"
+url = "1.7.1"
+ring = "0.13.2"
+clap = "2.32.0"
+reqwest = "0.8.8"
+failure = "0.1.2"
+threadpool = "1.7.1"
+
+serde = "1.0.76"
+serde_json = "1.0.27"
+serde_derive = "1.0.76"
+
+[[bin]]
+name = "ranger"
+path = "src/main.rs"
+test = false
+doc = false
