@@ -1,7 +1,7 @@
 [package]
 name = "lone-ranger"
 license = "MIT"
-version = "1.0.1"
+version = "1.0.2"
 readme = "README.MD"
 authors = ["DCjanus <DCjanus@dcjanus.com>"]
 description = "Subtitles downloader"
@@ -12,7 +12,7 @@ repository = "https://github.com/DCjanus/lone-ranger.git"
 url = "1.7"
 sha1 = {version = "0.6", features = ["std"]}
 clap = "2.32"
-reqwest = "0.8"
+reqwest = { git = "https://github.com/seanmonstar/reqwest.git", rev = "68d012e9540675a649276ac4349d6c847211b558" }
 failure = "0.1"
 threadpool = "1.7"
 
