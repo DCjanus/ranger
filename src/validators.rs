@@ -1,6 +1,6 @@
 use std::{path::Path, str::FromStr};
 
-#[allow(needless_pass_by_value)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn is_exists_file(path: String) -> Result<(), String> {
     let path = Path::new(&path);
     if path.is_dir() {
@@ -12,7 +12,7 @@ pub fn is_exists_file(path: String) -> Result<(), String> {
     }
 }
 
-#[allow(needless_pass_by_value)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn is_positive_integer(data: String) -> Result<(), String> {
     let parse_result = usize::from_str(&data);
     if parse_result.is_err() || parse_result.unwrap() == 0 {
