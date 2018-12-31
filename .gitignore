@@ -1,5 +1,4 @@
 # Rust or Cargo
-Cargo.lock
 /target
 **/*.rs.bk
 

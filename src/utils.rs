@@ -1,25 +1,17 @@
-use fetch::SubInfo;
 use std::{
-    env::current_dir,
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     str::FromStr,
 };
+
 use url::Url;
 
-pub type Result<T> = ::std::result::Result<T, ::failure::Error>;
+use crate::fetch::SubInfo;
 
-pub fn calc_video_path(path: &str) -> Result<PathBuf> {
-    let result = PathBuf::from(path).canonicalize()?;
-    if result.is_absolute() {
-        Ok(result)
-    } else {
-        Ok(current_dir()?.join(result))
-    }
-}
+pub type MyResult<T> = ::std::result::Result<T, ::failure::Error>;
 
-pub fn calc_cid_hash(path: &Path) -> Result<String> {
+pub fn calc_cid_hash(path: &Path) -> MyResult<String> {
     let mut file = File::open(path)?;
     let file_size = file.metadata()?.len();
 
@@ -55,8 +47,8 @@ pub fn calc_target_path(video_path: &Path, index: usize, sub_info: &SubInfo) -> 
         .expect("Failed to get file stem")
         .to_str()
         .expect("OsStr to str failed");
-    let sub_download_url = Url::from_str(sub_info.surl.as_ref())
-        .unwrap_or_else(|_| panic!(format!("Wrong sub download URL:{}", sub_info.surl)));
+    let sub_download_url = Url::from_str(sub_info.url.as_ref())
+        .unwrap_or_else(|_| panic!(format!("Wrong sub download URL:{}", sub_info.url)));
     let sub_extension = Path::new(sub_download_url.path())
         .extension()
         .map(|x| x.to_str().expect("OsStr to str failed for sub extension"))

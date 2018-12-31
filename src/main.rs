@@ -1,47 +1,22 @@
-extern crate clap;
-extern crate failure;
-extern crate reqwest;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sha1;
-extern crate threadpool;
-extern crate url;
-
-use clap::{App, Arg};
-use fetch::{SubInfo, TaskRunner};
 use std::{fs::File, io::Write};
-use utils::{calc_cid_hash, calc_target_path, calc_video_path};
-use validators::{is_exists_file, is_positive_integer};
 
+use structopt::StructOpt;
+
+use crate::{
+    arguments::Arguments,
+    fetch::{SubInfo, TaskRunner},
+    utils::{calc_cid_hash, calc_target_path},
+};
+
+pub mod arguments;
 pub mod fetch;
 pub mod utils;
-pub mod validators;
-
-pub const DEFAULT_LIMIT: &str = "10";
 
 fn main() -> Result<(), ::failure::Error> {
-    let matches = App::new("DC字幕下载器")
-        .version("1.0")
-        .about("一个简单的字幕下载器")
-        .author("DCjanus <DCjanus@dcjanus.com>")
-        .arg(
-            Arg::with_name("FILE")
-                .required(true)
-                .validator(is_exists_file)
-                .help("电影文件路径"),
-        ).arg(
-            Arg::with_name("LIMIT")
-                .validator(is_positive_integer)
-                .short("l")
-                .long("limit")
-                .default_value(DEFAULT_LIMIT)
-                .help("最大下载字幕数"),
-        ).get_matches();
+    let args: Arguments = Arguments::from_args();
 
-    let path = &calc_video_path(matches.value_of("FILE").unwrap())?;
-    let limit = matches.value_of("LIMIT").unwrap().parse::<usize>()?;
+    let path = &args.path;
+    let limit = args.limit;
 
     let cid_hash = calc_cid_hash(path)?;
     let sub_info_list = SubInfo::all(&cid_hash, limit)?;
@@ -58,7 +33,7 @@ fn main() -> Result<(), ::failure::Error> {
         let target_path = &download_result.target_path;
         let content = download_result.response?;
 
-        File::create(target_path)?.write_all(content.as_bytes())?;
+        File::create(target_path)?.write_all(&content)?;
         println!(
             "下载成功: {}",
             target_path.file_name().unwrap().to_str().unwrap()

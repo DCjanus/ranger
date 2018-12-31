@@ -1,22 +1,28 @@
-use reqwest;
-use serde_json;
 use std::{
+    io::Read,
     path::PathBuf,
     sync::mpsc::{channel, Receiver},
 };
+
+use reqwest;
+use serde::Deserialize;
+use serde_json;
 use threadpool::ThreadPool;
-use utils::Result;
+
+use crate::utils::MyResult;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SubInfo {
-    pub surl: String,
+    #[serde(rename = "surl")]
+    pub url: String,
     pub language: String,
     pub rate: String,
-    pub svote: i64,
+    #[serde(rename = "svote")]
+    pub vote: i64,
 }
 
 impl SubInfo {
-    pub fn all(cid_hash: &str, limit: usize) -> Result<Vec<SubInfo>> {
+    pub fn all(cid_hash: &str, limit: usize) -> MyResult<Vec<SubInfo>> {
         let url = format!(
             "http://sub.xmp.sandai.net:8000/subxl/{cid_hash}.json",
             cid_hash = cid_hash
@@ -28,12 +34,12 @@ impl SubInfo {
             .expect("Wrong response")
             .as_array()
             .expect("Wrong response")
-            .into_iter()
+            .iter()
             .filter(|x| !x.as_object().expect("Wrong response").is_empty())
             .map(|x| serde_json::from_value::<SubInfo>(x.clone()).expect("Wrong response"))
             .collect::<Vec<_>>();
 
-        sub_info_list.sort_by_key(|x| x.svote);
+        sub_info_list.sort_by_key(|x| x.vote);
         sub_info_list.reverse();
 
         sub_info_list = sub_info_list
@@ -44,14 +50,16 @@ impl SubInfo {
         Ok(sub_info_list)
     }
 
-    pub fn download(&self) -> Result<String> {
-        Ok(reqwest::get(&self.surl)?.text()?)
+    pub fn download(&self) -> MyResult<Vec<u8>> {
+        let mut buffer = Vec::new();
+        reqwest::get(&self.url)?.read_to_end(&mut buffer)?;
+        Ok(buffer)
     }
 }
 
 #[derive(Debug)]
 pub struct DownloadResult {
-    pub response: Result<String>,
+    pub response: MyResult<Vec<u8>>,
     pub target_path: PathBuf,
 }
 
@@ -69,7 +77,8 @@ impl TaskRunner {
                 .send(DownloadResult {
                     response: sub_info.download(),
                     target_path,
-                }).expect("Send download result failed")
+                })
+                .expect("Send download result failed")
         });
         self.results.push(receiver)
     }

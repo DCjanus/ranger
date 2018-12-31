@@ -4,4 +4,4 @@ newline_style = "Unix"
 reorder_impl_items = true
 merge_imports = true
 
-# edition = "Edition2018"
+edition = "2018"
