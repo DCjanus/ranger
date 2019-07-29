@@ -501,7 +501,7 @@ name = "lone-ranger"
 version = "1.0.3"
 dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "path-absolutize 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "path-absolutize 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -693,7 +693,7 @@ dependencies = [
 
 [[package]]
 name = "path-absolutize"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "path-dedot 1.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1593,7 +1593,7 @@ dependencies = [
 "checksum owning_ref 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "49a4b8ea2179e6a2e27411d3bca09ca6dd630821cf6894c6c7c8467a8ee7ef13"
 "checksum parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ab41b4aed082705d1056416ae4468b6ea99d52599ecf3169b00088d43113e337"
 "checksum parking_lot_core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "94c8c7923936b28d546dfd14d4472eaf34c99b14e1c973a32b3e6d4eb04298c9"
-"checksum path-absolutize 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fa39dc5f1153e93520b536bf6415979bdc8377b394e05e238198e4a73e8b1558"
+"checksum path-absolutize 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "7a7e32abff7b32a200649a44ea550c9498217bbd67fbea46d22d169b53bfc16e"
 "checksum path-dedot 1.1.11 (registry+https://github.com/rust-lang/crates.io-index)" = "014f2d91e2c944f3e93eeffae0c8177b508af4577f5fb4aa1733e0b8e8317f61"
 "checksum percent-encoding 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
 "checksum phf 0.7.24 (registry+https://github.com/rust-lang/crates.io-index)" = "b3da44b85f8e8dfaec21adae67f95d93244b2ecf6ad2a692320598dcc8e6dd18"
