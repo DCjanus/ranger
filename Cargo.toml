@@ -13,7 +13,7 @@ repository = "https://github.com/DCjanus/lone-ranger.git"
 url = "2.1.0"
 sha1 = { version = "0.6.0", features = ["std"] }
 reqwest = "0.9.19"
-failure = "0.1.5"
+failure = "0.1.6"
 threadpool = "1.7.1"
 structopt = "0.2.18"
 path-absolutize = "1.1.6"
