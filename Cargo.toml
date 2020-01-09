@@ -10,7 +10,7 @@ homepage = "https://github.com/DCjanus/lone-ranger"
 repository = "https://github.com/DCjanus/lone-ranger.git"
 
 [dependencies]
-url = "2.1.0"
+url = "2.1.1"
 sha1 = { version = "0.6.0", features = ["std"] }
 reqwest = "0.9.19"
 failure = "0.1.5"
