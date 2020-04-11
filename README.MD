@@ -1,6 +1,6 @@
-# Lone Ranger
+# Lone Ranger(独行侠)
 
-`Lone Ranger`是一个命令行版的电影外挂字幕下载器，使用`Rust`语言编写，基于[clap](https://github.com/clap-rs/clap)项目。
+`Lone Ranger`是一个命令行版的电影外挂字幕下载器，使用`Rust`语言编写。
 
 可预见的时间内，该工具主要面向简体中文用户。
 
