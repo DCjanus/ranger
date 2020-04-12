@@ -1,44 +1,57 @@
-use std::{fs::File, io::Write};
+use log::error;
+use once_cell::sync::Lazy;
 
-use structopt::StructOpt;
-
-use crate::{
-    arguments::Arguments,
-    fetch::{SubInfo, TaskRunner},
-    utils::{calc_cid_hash, calc_target_path},
-};
-
-pub mod arguments;
+pub mod constants;
 pub mod fetch;
-pub mod utils;
+pub mod options;
 
-fn main() -> Result<(), ::failure::Error> {
-    let args: Arguments = Arguments::from_args();
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    Lazy::force(&crate::options::OPTIONS);
+    init_logger()?;
 
-    let path = &args.path;
-    let limit = args.limit;
+    let mut handlers = vec![];
+    let path = crate::options::OPTIONS.path.clone();
+    let depth = crate::options::OPTIONS.depth;
+    crate::fetch::found_videos(path, depth.into(), &mut handlers)?;
 
-    let cid_hash = calc_cid_hash(path)?;
-    let sub_info_list = SubInfo::all(&cid_hash, limit)?;
-
-    let mut downloader = TaskRunner::default();
-    sub_info_list
-        .into_iter()
-        .enumerate()
-        .map(|(index, sub_info)| (calc_target_path(path, index, &sub_info), sub_info))
-        .for_each(|(target_path, sub_info)| downloader.execute(sub_info, target_path)); // UGLY CODE
-
-    for i in downloader.results {
-        let download_result = i.recv().expect("Receiver download result failed");
-        let target_path = &download_result.target_path;
-        let content = download_result.response?;
-
-        File::create(target_path)?.write_all(&content)?;
-        println!(
-            "下载成功: {}",
-            target_path.file_name().unwrap().to_str().unwrap()
-        );
+    for i in handlers {
+        if let Err(error) = i.await? {
+            error!("发生错误: {}", error);
+        }
     }
 
+    Ok(())
+}
+
+fn init_logger() -> anyhow::Result<()> {
+    if std::env::var("RUST_BACKTRACE").is_ok() {
+        // work with anyhow::Error
+        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+    }
+
+    let level = if crate::options::OPTIONS.verbose {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            let color_config = fern::colors::ColoredLevelConfig::new()
+                .info(fern::colors::Color::Green)
+                .debug(fern::colors::Color::Magenta);
+            out.finish(format_args!(
+                "[{}][{}][{}] {}",
+                chrono::Local::now().format("%F %H:%M:%S %:z"),
+                color_config.color(record.level()),
+                record.target(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .level_for(module_path!().splitn(2, "::").next().unwrap(), level)
+        .chain(std::io::stdout())
+        .apply()?;
     Ok(())
 }

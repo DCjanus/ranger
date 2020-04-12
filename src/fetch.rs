@@ -1,85 +1,156 @@
 use std::{
-    io::Read,
-    path::PathBuf,
-    sync::mpsc::{channel, Receiver},
+    io::SeekFrom,
+    path::{Path, PathBuf},
 };
 
-use reqwest;
+use log::{debug, info, warn};
+use once_cell::sync::Lazy;
+use reqwest::Client;
 use serde::Deserialize;
-use serde_json;
-use threadpool::ThreadPool;
+use tokio::{fs::File, io::AsyncReadExt, sync::Semaphore, task::JoinHandle};
 
-use crate::utils::MyResult;
+use crate::options::OPTIONS;
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct SubInfo {
-    #[serde(rename = "surl")]
-    pub url: String,
-    pub language: String,
-    pub rate: String,
-    #[serde(rename = "svote")]
-    pub vote: i64,
-}
+static CONCURRENT_DOWNLOAD_LIMIT: Lazy<Semaphore> =
+    Lazy::new(|| Semaphore::new(OPTIONS.concurrent.into()));
 
-impl SubInfo {
-    pub fn all(cid_hash: &str, limit: usize) -> MyResult<Vec<SubInfo>> {
-        let url = format!(
-            "http://sub.xmp.sandai.net:8000/subxl/{cid_hash}.json",
-            cid_hash = cid_hash
-        );
-        let text = reqwest::get(&url)?.text()?;
-        let json = serde_json::from_str::<serde_json::Value>(&text)?;
-        let mut sub_info_list = json
-            .get("sublist")
-            .expect("Wrong response")
-            .as_array()
-            .expect("Wrong response")
-            .iter()
-            .filter(|x| !x.as_object().expect("Wrong response").is_empty())
-            .map(|x| serde_json::from_value::<SubInfo>(x.clone()).expect("Wrong response"))
-            .collect::<Vec<_>>();
+static CLIENT: Lazy<Client> = Lazy::new(|| {
+    Client::builder()
+        .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:75.0) Gecko/20100101 Firefox/75.0")
+        .build()
+        .unwrap()
+});
 
-        sub_info_list.sort_by_key(|x| x.vote);
-        sub_info_list.reverse();
-
-        sub_info_list = sub_info_list
-            .into_iter()
-            .take(limit)
-            .collect::<Vec<SubInfo>>();
-
-        Ok(sub_info_list)
+pub fn found_videos(
+    path: PathBuf,
+    depth: u32,
+    handlers: &mut Vec<JoinHandle<anyhow::Result<()>>>,
+) -> anyhow::Result<()> {
+    if path.is_file()
+        && path
+            .extension()
+            .and_then(|x| x.to_str())
+            .map(|x| crate::constants::VIDEO_FORMATS.contains(x))
+            == Some(true)
+    {
+        let handler = tokio::spawn(download_video(path));
+        handlers.push(handler);
+        return Ok(());
     }
 
-    pub fn download(&self) -> MyResult<Vec<u8>> {
-        let mut buffer = Vec::new();
-        reqwest::get(&self.url)?.read_to_end(&mut buffer)?;
-        Ok(buffer)
+    if depth == 0 {
+        return Ok(());
     }
-}
 
-#[derive(Debug)]
-pub struct DownloadResult {
-    pub response: MyResult<Vec<u8>>,
-    pub target_path: PathBuf,
-}
-
-#[derive(Default)]
-pub struct TaskRunner {
-    pub pool: ThreadPool,
-    pub results: Vec<Receiver<DownloadResult>>,
-}
-
-impl TaskRunner {
-    pub fn execute(&mut self, sub_info: SubInfo, target_path: PathBuf) {
-        let (sender, receiver) = channel::<DownloadResult>();
-        self.pool.execute(move || {
-            sender
-                .send(DownloadResult {
-                    response: sub_info.download(),
-                    target_path,
-                })
-                .expect("Send download result failed")
-        });
-        self.results.push(receiver)
+    for i in path.read_dir()? {
+        found_videos(i?.path(), depth - 1, handlers)?;
     }
+
+    Ok(())
+}
+
+async fn download_video(path: PathBuf) -> anyhow::Result<()> {
+    #[derive(Debug, Deserialize, Clone)]
+    struct SubInfo {
+        surl: String,
+        language: String,
+        rate: String,
+        svote: i64,
+    }
+
+    assert!(path.is_file());
+
+    let permit = CONCURRENT_DOWNLOAD_LIMIT.acquire().await;
+
+    debug!("正在搜索 {}", path.display());
+    let cid_hash = calc_cid_hash(&path).await?;
+    let url = format!(
+        "http://sub.xmp.sandai.net:8000/subxl/{cid_hash}.json",
+        cid_hash = cid_hash
+    );
+
+    debug!("获取详情 {}", url);
+    let content = CLIENT.get(&url).send().await?.bytes().await?;
+    let text = String::from_utf8_lossy(&content);
+    let sub_info = match serde_json::from_str::<serde_json::Value>(&text)?
+        .get("sublist")
+        .and_then(|x| x.as_array())
+        .and_then(|x| x.iter().next())
+        .and_then(|x| serde_json::from_value::<SubInfo>(x.clone()).ok())
+    {
+        None => {
+            warn!(
+                "not found subtitle for {}",
+                path.file_name().unwrap().to_string_lossy()
+            );
+            return Ok(());
+        }
+        Some(x) => x,
+    };
+    let surl = if let Ok(rate) = sub_info.rate.parse::<u32>() {
+        // 大部分字幕的评分是一个整数
+        if rate < 3 {
+            debug!("低评分: {}", rate);
+            return Ok(());
+        } else {
+            sub_info.surl
+        }
+    } else if sub_info.rate.len() < 3 {
+        // 少部分字幕的评分是✫✫✫形式的，直接判断长度
+        debug!("低评分: {}", sub_info.rate);
+        return Ok(());
+    } else {
+        sub_info.surl
+    };
+
+    debug!("正在下载 {}", surl);
+    let surl = url::Url::parse(&surl)?;
+    let extension = PathBuf::from(surl.path())
+        .extension()
+        .and_then(|x| x.to_str())
+        .unwrap_or(".srt")
+        .to_owned();
+    let target_path = path.with_extension(extension);
+    let content = CLIENT.get(surl).send().await?.bytes().await?;
+
+    debug!("文件写入 {}", target_path.display());
+    tokio::fs::write(target_path, content).await?;
+
+    drop(permit);
+    info!(
+        "下载完成: {}",
+        path.file_name()
+            .and_then(|x| x.to_str())
+            .unwrap_or("<UNKNOWN>")
+    );
+
+    Ok(())
+}
+
+async fn calc_cid_hash(path: &Path) -> anyhow::Result<String> {
+    let mut file = File::open(path).await?;
+    let file_size = file.metadata().await?.len();
+
+    let mut context = ::sha1::Sha1::new();
+    if file_size < 0xf000 {
+        let mut buffer: Vec<u8> = Vec::with_capacity(0xf000);
+        file.seek(SeekFrom::Start(0)).await?;
+        file.read_to_end(&mut buffer).await?;
+        context.update(&buffer);
+    } else {
+        let mut buffer = vec![0u8; 0x5000];
+
+        file.seek(SeekFrom::Start(0)).await?;
+        file.read_exact(&mut buffer).await?;
+        context.update(&buffer);
+
+        file.seek(SeekFrom::Start(file_size / 3)).await?;
+        file.read_exact(&mut buffer).await?;
+        context.update(&buffer);
+
+        file.seek(SeekFrom::End(-0x5000)).await?;
+        file.read_exact(&mut buffer).await?;
+        context.update(&buffer);
+    }
+    Ok(context.digest().to_string())
 }
