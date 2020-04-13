@@ -5,6 +5,7 @@ use std::{
 
 use log::{debug, info, warn};
 use once_cell::sync::Lazy;
+use regex::Regex;
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::{fs::File, io::AsyncReadExt, sync::Semaphore, task::JoinHandle};
@@ -28,10 +29,10 @@ pub fn found_videos(
 ) -> anyhow::Result<()> {
     if path.is_file()
         && path
-            .extension()
-            .and_then(|x| x.to_str())
-            .map(|x| crate::constants::VIDEO_FORMATS.contains(x))
-            == Some(true)
+        .extension()
+        .and_then(|x| x.to_str())
+        .map(|x| crate::constants::VIDEO_FORMATS.contains(x))
+        == Some(true)
     {
         let handler = tokio::spawn(download_video(path));
         handlers.push(handler);
@@ -87,21 +88,12 @@ async fn download_video(path: PathBuf) -> anyhow::Result<()> {
         }
         Some(x) => x,
     };
-    let surl = if let Ok(rate) = sub_info.rate.parse::<u32>() {
-        // 大部分字幕的评分是一个整数
-        if rate < 3 {
-            debug!("低评分: {}", rate);
-            return Ok(());
-        } else {
-            sub_info.surl
-        }
-    } else if sub_info.rate.len() < 3 {
-        // 少部分字幕的评分是✫✫✫形式的，直接判断长度
+    if !should_download(&sub_info.rate) {
         debug!("低评分: {}", sub_info.rate);
         return Ok(());
-    } else {
-        sub_info.surl
-    };
+    }
+
+    let surl = sub_info.surl;
 
     debug!("正在下载 {}", surl);
     let surl = url::Url::parse(&surl)?;
@@ -125,6 +117,27 @@ async fn download_video(path: PathBuf) -> anyhow::Result<()> {
     );
 
     Ok(())
+}
+
+fn should_download(rate: &str) -> bool {
+    static NUM_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"\d+").unwrap());
+    if NUM_MATCH.is_match(rate) {
+        return rate.parse::<u32>().unwrap() >= 3;
+    }
+
+    static PERCENT_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"\d+%").unwrap());
+    if PERCENT_MATCH.is_match(rate) {
+        let percent = rate.trim_end_matches('%').parse::<u32>().unwrap();
+        return percent >= 60;
+    }
+
+    static STAR_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"([🟊⭑])+").unwrap());
+    if STAR_MATCH.is_match(rate) {
+        return rate.len() >= 3;
+    }
+
+    warn!("unexpected rate format: {}", rate);
+    true
 }
 
 async fn calc_cid_hash(path: &Path) -> anyhow::Result<String> {
