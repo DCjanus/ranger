@@ -29,10 +29,10 @@ pub fn found_videos(
 ) -> anyhow::Result<()> {
     if path.is_file()
         && path
-        .extension()
-        .and_then(|x| x.to_str())
-        .map(|x| crate::constants::VIDEO_FORMATS.contains(x))
-        == Some(true)
+            .extension()
+            .and_then(|x| x.to_str())
+            .map(|x| crate::constants::VIDEO_FORMATS.contains(x))
+            == Some(true)
     {
         let handler = tokio::spawn(download_video(path));
         handlers.push(handler);
@@ -89,7 +89,11 @@ async fn download_video(path: PathBuf) -> anyhow::Result<()> {
         Some(x) => x,
     };
     if !should_download(&sub_info.rate) {
-        debug!("低评分: {}", sub_info.rate);
+        warn!(
+            "评分较低({}) {}",
+            sub_info.rate,
+            path.file_name().unwrap().to_string_lossy()
+        );
         return Ok(());
     }
 

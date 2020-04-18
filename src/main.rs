@@ -39,8 +39,9 @@ fn init_logger() -> anyhow::Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
             let color_config = fern::colors::ColoredLevelConfig::new()
+                .debug(fern::colors::Color::Magenta)
                 .info(fern::colors::Color::Green)
-                .debug(fern::colors::Color::Magenta);
+                .warn(fern::colors::Color::Cyan);
             out.finish(format_args!(
                 "[{}][{}][{}] {}",
                 chrono::Local::now().format("%F %H:%M:%S %:z"),
