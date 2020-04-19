@@ -1,13 +1,11 @@
+use log::{debug, info, warn};
+use once_cell::sync::Lazy;
+use reqwest::Client;
+use serde::Deserialize;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
 };
-
-use log::{debug, info, warn};
-use once_cell::sync::Lazy;
-use regex::Regex;
-use reqwest::Client;
-use serde::Deserialize;
 use tokio::{fs::File, io::AsyncReadExt, sync::Semaphore, task::JoinHandle};
 
 use crate::options::OPTIONS;
@@ -88,25 +86,16 @@ async fn download_video(path: PathBuf) -> anyhow::Result<()> {
         }
         Some(x) => x,
     };
-    if !should_download(&sub_info.rate) {
-        warn!(
-            "评分较低({}) {}",
-            sub_info.rate,
-            path.file_name().unwrap().to_string_lossy()
-        );
-        return Ok(());
-    }
 
-    let surl = sub_info.surl;
-
-    debug!("正在下载 {}", surl);
-    let surl = url::Url::parse(&surl)?;
+    let surl = url::Url::parse(&sub_info.surl)?;
     let extension = PathBuf::from(surl.path())
         .extension()
         .and_then(|x| x.to_str())
         .unwrap_or(".srt")
         .to_owned();
     let target_path = path.with_extension(extension);
+
+    debug!("正在下载 {}", surl);
     let content = CLIENT.get(surl).send().await?.bytes().await?;
 
     debug!("文件写入 {}", target_path.display());
@@ -121,27 +110,6 @@ async fn download_video(path: PathBuf) -> anyhow::Result<()> {
     );
 
     Ok(())
-}
-
-fn should_download(rate: &str) -> bool {
-    static NUM_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"\d+").unwrap());
-    if NUM_MATCH.is_match(rate) {
-        return rate.parse::<u32>().unwrap() >= 3;
-    }
-
-    static PERCENT_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"\d+%").unwrap());
-    if PERCENT_MATCH.is_match(rate) {
-        let percent = rate.trim_end_matches('%').parse::<u32>().unwrap();
-        return percent >= 60;
-    }
-
-    static STAR_MATCH: Lazy<Regex> = Lazy::new(|| Regex::new(r"([🟊⭑])+").unwrap());
-    if STAR_MATCH.is_match(rate) {
-        return rate.len() >= 3;
-    }
-
-    warn!("unexpected rate format: {}", rate);
-    true
 }
 
 async fn calc_cid_hash(path: &Path) -> anyhow::Result<String> {
