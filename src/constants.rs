@@ -1,5 +1,6 @@
-use once_cell::sync::Lazy;
 use std::{collections::HashSet, iter::FromIterator};
+
+use once_cell::sync::Lazy;
 
 pub static VIDEO_FORMATS: Lazy<HashSet<&str>> = Lazy::new(|| {
     HashSet::from_iter(vec![

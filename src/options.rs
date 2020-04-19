@@ -1,8 +1,9 @@
-use once_cell::sync::Lazy;
 use std::{
     num::{NonZeroU32, NonZeroUsize},
     path::PathBuf,
 };
+
+use once_cell::sync::Lazy;
 use structopt::StructOpt;
 
 pub static OPTIONS: Lazy<Options> = Lazy::new(Options::from_args);

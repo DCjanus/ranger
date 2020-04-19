@@ -1,11 +1,12 @@
-use log::{debug, info, warn};
-use once_cell::sync::Lazy;
-use reqwest::Client;
-use serde::Deserialize;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
 };
+
+use log::{debug, info, warn};
+use once_cell::sync::Lazy;
+use reqwest::Client;
+use serde::Deserialize;
 use tokio::{fs::File, io::AsyncReadExt, sync::Semaphore, task::JoinHandle};
 
 use crate::options::OPTIONS;
