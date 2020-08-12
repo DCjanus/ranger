@@ -19,7 +19,7 @@ serde = { version = "1.0.115", features = ["derive"] }
 bytes = "0.5.4"
 structopt = "0.3.13"
 sha1 = "0.6.0"
-log = "0.4.8"
+log = "0.4.11"
 fern = { version = "0.6.0", features = ["colored"] }
 serde_json = "1.0.51"
 url = "2.1.1"
