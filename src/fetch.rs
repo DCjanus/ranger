@@ -37,9 +37,9 @@ pub fn found_videos(
         handlers.push(handler);
         return Ok(());
     }
-
-    if depth == 0 {
-        return Ok(());
+    
+    if depth==0 || path.is_file() {
+        return Ok(())
     }
 
     for i in path.read_dir()? {
